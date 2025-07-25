@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Información y Comunicación - Escuela Dr. José Bianco</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.3s ease;
+        }
+        .card:hover:not(.no-hover) {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.is-visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .rubric-table {
+            display: none;
+        }
+        .rubric-table.active {
+            display: block;
+        }
+        .cycle-goals {
+            display: none;
+        }
+        .cycle-goals.active {
+            display: block;
+        }
+        .timeline {
+            position: relative;
+            padding: 1rem 0;
+        }
+        .timeline:before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #e5e7eb;
+            transform: translateX(-50%);
+        }
+        .timeline-item {
+            position: relative;
+            width: 50%;
+            padding: 1rem 2rem;
+        }
+        .timeline-item:nth-child(odd) {
+            left: 0;
+            padding-right: 3rem;
+            text-align: right;
+        }
+        .timeline-item:nth-child(even) {
+            left: 50%;
+            padding-left: 3rem;
+            text-align: left;
+        }
+        .timeline-dot {
+            position: absolute;
+            top: 50%;
+            width: 20px;
+            height: 20px;
+            background: #6366f1;
+            border-radius: 50%;
+            border: 4px solid #f3f4f6;
+            transform: translateY(-50%);
+        }
+        .timeline-item:nth-child(odd) .timeline-dot {
+            right: -10px;
+        }
+        .timeline-item:nth-child(even) .timeline-dot {
+            left: -10px;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Modal para IAGen -->
+    <div id="ia-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div id="modal-header" class="flex justify-between items-center mb-4">
+                <h3 id="modal-title" class="text-2xl font-bold text-indigo-600">Asistente de IAGen</h3>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <div id="modal-body"></div>
+            <div id="ia-loading" class="hidden text-center mt-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                <p class="mt-2 text-gray-600">Generando...</p>
+            </div>
+            <div id="ia-result" class="mt-6"></div>
+        </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900">Sistema de Información y Comunicación</h1>
+            <p class="text-xl text-indigo-600 mt-2">Escuela Dr. José Bianco</p>
+        </header>
+
+        <!-- Cronograma de Seguimiento -->
+        <section id="cronograma" class="mb-12">
+            <div class="card p-6 md:p-8 no-hover">
+                <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">Cronograma de Observaciones y Seguimiento</h2>
+                <div class="timeline">
+                    <div class="timeline-item"><div class="timeline-dot"></div><h4 class="font-bold">28 de Julio</h4><p class="text-sm text-gray-600">Inicio del Período de Observación</p></div>
+                    <div class="timeline-item"><div class="timeline-dot bg-yellow-500"></div><h4 class="font-bold">Fin de Agosto</h4><p class="text-sm text-gray-600">1er Corte Evaluativo</p></div>
+                    <div class="timeline-item"><div class="timeline-dot bg-yellow-500"></div><h4 class="font-bold">Fin de Septiembre</h4><p class="text-sm text-gray-600">2do Corte Evaluativo</p></div>
+                    <div class="timeline-item"><div class="timeline-dot bg-yellow-500"></div><h4 class="font-bold">Fin de Octubre</h4><p class="text-sm text-gray-600">3er Corte Evaluativo</p></div>
+                    <div class="timeline-item"><div class="timeline-dot"></div><h4 class="font-bold">28 de Noviembre</h4><p class="text-sm text-gray-600">Cierre del Período y Análisis Final</p></div>
+                </div>
+                <div class="mt-8 pt-6 border-t">
+                    <h3 class="text-xl font-bold text-center mb-4">Informes Asistidos por IA</h3>
+                    <p class="text-center text-gray-600 mb-6">Utiliza la IAGen para generar plantillas y sugerencias para tus informes de seguimiento.</p>
+                    <div class="flex flex-wrap justify-center gap-4">
+                        <button onclick="generateReportSuggestion('progreso')" class="bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-200 transition duration-300 flex items-center"><i data-lucide="user-check" class="mr-2 h-5 w-5"></i>Informe de Progreso</button>
+                        <button onclick="generateReportSuggestion('intervencion')" class="bg-teal-100 text-teal-700 font-semibold py-2 px-4 rounded-lg hover:bg-teal-200 transition duration-300 flex items-center"><i data-lucide="lightbulb" class="mr-2 h-5 w-5"></i>Sugerencias de Intervención</button>
+                        <button onclick="generateReportSuggestion('fortalezas')" class="bg-amber-100 text-amber-700 font-semibold py-2 px-4 rounded-lg hover:bg-amber-200 transition duration-300 flex items-center"><i data-lucide="trending-up" class="mr-2 h-5 w-5"></i>Análisis de Fortalezas</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN DE RÚBRICAS ACTUALIZADA -->
+        <section id="rubricas" class="mb-12">
+            <div class="card p-6 md:p-8 no-hover">
+                <h2 class="text-3xl font-bold mb-2 text-center text-gray-800">Rúbricas de Observación en el Marco del Plan de Mejora</h2>
+                <p class="text-center text-gray-600 mb-8">Herramienta de seguimiento enfocada en el desarrollo de capacidades y metas por ciclo.</p>
+                
+                <form id="rubric-form" class="space-y-6">
+                    <!-- Datos Generales -->
+                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 border-b pb-6">
+                        <div>
+                            <label for="observer-role" class="block text-sm font-medium text-gray-700">Rol del Observador</label>
+                            <select id="observer-role" name="observer-role" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="" disabled selected>Seleccione un rol</option>
+                                <option value="Director/a">Director/a</option>
+                                <option value="Vicedirector/a">Vicedirector/a</option>
+                                <option value="Coevaluación (Docente)">Coevaluación (Docente)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="observer-name" class="block text-sm font-medium text-gray-700">Nombre del Observador</label>
+                            <input type="text" id="observer-name" name="observer-name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label for="obs-date" class="block text-sm font-medium text-gray-700">Fecha de Observación</label>
+                            <input type="date" id="obs-date" name="obs-date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label for="teacher-name" class="block text-sm font-medium text-gray-700">Docente / Grupo Observado</label>
+                            <input type="text" id="teacher-name" name="teacher-name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Nombre o N° de Stand">
+                        </div>
+                        <div>
+                            <label for="grade-level" class="block text-sm font-medium text-gray-700">Grado</label>
+                            <select id="grade-level" name="grade-level" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="" disabled selected>Seleccione un grado</option>
+                                <option value="1">1er Grado</option>
+                                <option value="2">2do Grado</option>
+                                <option value="3">3er Grado</option>
+                                <option value="4">4to Grado</option>
+                                <option value="5">5to Grado</option>
+                                <option value="6">6to Grado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="class-topic" class="block text-sm font-medium text-gray-700">Tema de la Clase</label>
+                            <input type="text" id="class-topic" name="class-topic" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+                        <div class="lg:col-span-3">
+                            <label for="subject-area" class="block text-sm font-medium text-gray-700">Tipo de Evaluación / Espacio Curricular</label>
+                            <select id="subject-area" name="subject-area" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="" disabled selected>Seleccione un tipo</option>
+                                <option value="matematica">Observación de Clase: Matemática</option>
+                                <option value="lengua">Observación de Clase: Lengua</option>
+                                <option value="ciencias">Observación de Clase: Ciencias</option>
+                                <option value="feria">Evaluación: Feria de Ciencias y STEAM</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor de Rúbricas -->
+                    <div id="rubrics-container" class="mt-6">
+                        <!-- Rúbrica de Matemática -->
+                        <div id="rubrica-matematica" class="rubric-table space-y-4">
+                            <h3 class="text-xl font-bold text-center text-blue-700">Capacidad: Abordaje y Resolución de Situaciones Problemáticas</h3>
+                            <div id="math-goals" class="cycle-goals p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-800 rounded-r-lg"><p class="font-bold text-sm">Metas del Ciclo:</p><p class="text-xs"></p></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">1. Comprensión del Problema</p><p class="text-xs text-gray-500 mb-2">Indicadores: Identifica datos, reconoce la incógnita, reformula el problema con sus palabras.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="math_crit1" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="math_crit1" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="math_crit1" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="math_obs1" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">2. Diseño y Aplicación de Estrategias</p><p class="text-xs text-gray-500 mb-2">Indicadores: Selecciona operaciones pertinentes, usa material concreto o representaciones gráficas, prueba diferentes caminos.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="math_crit2" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="math_crit2" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="math_crit2" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="math_obs2" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">3. Comunicación y Validación</p><p class="text-xs text-gray-500 mb-2">Indicadores: Explica oralmente o por escrito su procedimiento, justifica la validez del resultado, compara procedimientos con sus pares.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="math_crit3" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="math_crit3" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="math_crit3" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="math_obs3" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                        </div>
+                        <!-- Rúbrica de Lengua -->
+                        <div id="rubrica-lengua" class="rubric-table space-y-4">
+                             <h3 class="text-xl font-bold text-center text-red-700">Capacidad: Oralidad, Lectura y Escritura</h3>
+                             <div id="lang-goals" class="cycle-goals p-3 bg-red-50 border-l-4 border-red-500 text-red-800 rounded-r-lg"><p class="font-bold text-sm">Metas del Ciclo:</p><p class="text-xs"></p></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">1. Comprensión Lectora</p><p class="text-xs text-gray-500 mb-2">Indicadores: Localiza información explícita, realiza inferencias, identifica el propósito del texto, opina sobre lo leído.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="lang_crit1" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="lang_crit1" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="lang_crit1" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="lang_obs1" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">2. Producción Escrita</p><p class="text-xs text-gray-500 mb-2">Indicadores: Mantiene el tema (coherencia), conecta ideas (cohesión), usa vocabulario adecuado, aplica convenciones de ortografía y puntuación.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="lang_crit2" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="lang_crit2" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="lang_crit2" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="lang_obs2" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">3. Intercambio Oral</p><p class="text-xs text-gray-500 mb-2">Indicadores: Expresa sus ideas con claridad, escucha atentamente a otros, respeta los turnos de habla, argumenta sus opiniones.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="lang_crit3" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="lang_crit3" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="lang_crit3" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="lang_obs3" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                        </div>
+                        <!-- Rúbrica de Ciencias -->
+                        <div id="rubrica-ciencias" class="rubric-table space-y-4">
+                             <h3 class="text-xl font-bold text-center text-green-700">Capacidad: Pensamiento Crítico y Ciudadanía Digital</h3>
+                             <div id="sci-goals" class="cycle-goals p-3 bg-green-50 border-l-4 border-green-500 text-green-800 rounded-r-lg"><p class="font-bold text-sm">Metas del Ciclo:</p><p class="text-xs"></p></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">1. Indagación y Búsqueda de Información</p><p class="text-xs text-gray-500 mb-2">Indicadores: Formula preguntas investigables, busca en fuentes diversas (digitales y analógicas), evalúa la confiabilidad de la información.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="sci_crit1" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="sci_crit1" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="sci_crit1" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="sci_obs1" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">2. Análisis y Organización de la Evidencia</p><p class="text-xs text-gray-500 mb-2">Indicadores: Registra datos en tablas o gráficos, compara información, identifica patrones o relaciones, diferencia hechos de opiniones.</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="sci_crit2" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="sci_crit2" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="sci_crit2" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="sci_obs2" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-gray-50 rounded-lg"><p class="font-semibold">3. Elaboración y Comunicación de Conclusiones</p><p class="text-xs text-gray-500 mb-2">Indicadores: Elabora conclusiones basadas en evidencia, utiliza vocabulario científico, comunica sus ideas usando diversos formatos (incluyendo producciones multimediales).</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="sci_crit3" value="Logrado" class="mr-2">Logrado</label><label class="flex items-center"><input type="radio" name="sci_crit3" value="En Proceso" class="mr-2">En Proceso</label><label class="flex items-center"><input type="radio" name="sci_crit3" value="Iniciado" class="mr-2">Iniciado</label></div><textarea name="sci_obs3" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                        </div>
+                        <!-- Rúbrica de Feria de Ciencias -->
+                        <div id="rubrica-feria" class="rubric-table space-y-4">
+                             <h3 class="text-xl font-bold text-center text-purple-700">Rúbrica de Evaluación - Feria de Ciencias y STEAM</h3>
+                            <div class="p-4 bg-purple-50 rounded-lg"><p class="font-semibold">1. Pregunta de Investigación y Objetivos</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="fair_crit1" value="Excelente" class="mr-2">Excelente</label><label class="flex items-center"><input type="radio" name="fair_crit1" value="Bueno" class="mr-2">Bueno</label><label class="flex items-center"><input type="radio" name="fair_crit1" value="Satisfactorio" class="mr-2">Satisfactorio</label><label class="flex items-center"><input type="radio" name="fair_crit1" value="Necesita Mejora" class="mr-2">Necesita Mejora</label></div><textarea name="fair_obs1" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-purple-50 rounded-lg"><p class="font-semibold">2. Investigación y Marco Teórico</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="fair_crit2" value="Excelente" class="mr-2">Excelente</label><label class="flex items-center"><input type="radio" name="fair_crit2" value="Bueno" class="mr-2">Bueno</label><label class="flex items-center"><input type="radio" name="fair_crit2" value="Satisfactorio" class="mr-2">Satisfactorio</label><label class="flex items-center"><input type="radio" name="fair_crit2" value="Necesita Mejora" class="mr-2">Necesita Mejora</label></div><textarea name="fair_obs2" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-purple-50 rounded-lg"><p class="font-semibold">3. Innovación y Creatividad</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="fair_crit3" value="Excelente" class="mr-2">Excelente</label><label class="flex items-center"><input type="radio" name="fair_crit3" value="Bueno" class="mr-2">Bueno</label><label class="flex items-center"><input type="radio" name="fair_crit3" value="Satisfactorio" class="mr-2">Satisfactorio</label><label class="flex items-center"><input type="radio" name="fair_crit3" value="Necesita Mejora" class="mr-2">Necesita Mejora</label></div><textarea name="fair_obs3" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-purple-50 rounded-lg"><p class="font-semibold">4. Comunicación y Presentación del Stand</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="fair_crit4" value="Excelente" class="mr-2">Excelente</label><label class="flex items-center"><input type="radio" name="fair_crit4" value="Bueno" class="mr-2">Bueno</label><label class="flex items-center"><input type="radio" name="fair_crit4" value="Satisfactorio" class="mr-2">Satisfactorio</label><label class="flex items-center"><input type="radio" name="fair_crit4" value="Necesita Mejora" class="mr-2">Necesita Mejora</label></div><textarea name="fair_obs4" class="mt-2 w-full rounded-md border-gray-300" placeholder="Observaciones..."></textarea></div>
+                            <div class="p-4 bg-teal-50 rounded-lg"><p class="font-semibold text-teal-800">5. Integración de IA en la Solución</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="fair_crit5" value="Excelente" class="mr-2">Excelente</label><label class="flex items-center"><input type="radio" name="fair_crit5" value="Bueno" class="mr-2">Bueno</label><label class="flex items-center"><input type="radio" name="fair_crit5" value="Satisfactorio" class="mr-2">Satisfactorio</label><label class="flex items-center"><input type="radio" name="fair_crit5" value="Necesita Mejora" class="mr-2">Necesita Mejora</label></div><textarea name="fair_obs5" class="mt-2 w-full rounded-md border-gray-300" placeholder="¿Cómo se usó la IA para investigar, crear o presentar?"></textarea></div>
+                            <div class="p-4 bg-teal-50 rounded-lg"><p class="font-semibold text-teal-800">6. Uso Ético y Crítico de IA</p><div class="flex flex-wrap gap-4 mt-2"><label class="flex items-center"><input type="radio" name="fair_crit6" value="Excelente" class="mr-2">Excelente</label><label class="flex items-center"><input type="radio" name="fair_crit6" value="Bueno" class="mr-2">Bueno</label><label class="flex items-center"><input type="radio" name="fair_crit6" value="Satisfactorio" class="mr-2">Satisfactorio</label><label class="flex items-center"><input type="radio" name="fair_crit6" value="Necesita Mejora" class="mr-2">Necesita Mejora</label></div><textarea name="fair_obs6" class="mt-2 w-full rounded-md border-gray-300" placeholder="¿Se analizaron los resultados de la IA? ¿Se consideraron sesgos?"></textarea></div>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-6 border-t">
+                        <div class="flex flex-wrap justify-center gap-4">
+                            <button type="button" id="copy-rubric-btn" class="w-full md:w-auto bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-gray-300 transition duration-300 flex items-center justify-center text-lg">
+                                <i data-lucide="copy" class="mr-2 h-5 w-5"></i> Copiar para Word
+                            </button>
+                            <button type="submit" class="w-full md:w-auto bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 flex items-center justify-center text-lg">
+                                <i data-lucide="send" class="mr-2 h-5 w-5"></i> Enviar por WhatsApp
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+        
+        <footer class="text-center text-gray-500 mt-12"><p>&copy; 2024 Escuela Dr. José Bianco. Propuesta de mejora continua.</p></footer>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const modal = document.getElementById('ia-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const iaLoading = document.getElementById('ia-loading');
+        const iaResult = document.getElementById('ia-result');
+
+        function openModal() { modal.classList.add('is-visible'); }
+        function closeModal() { 
+            modal.classList.remove('is-visible');
+            iaResult.innerHTML = '';
+            iaLoading.classList.add('hidden');
+        }
+        modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+        
+        async function generateReportSuggestion(reportType) {
+            let prompt = "";
+            let title = "Asistente de IAGen";
+
+            switch(reportType) {
+                case 'progreso':
+                    title = "Generador de Informe de Progreso";
+                    prompt = "Actúa como un asesor pedagógico. Genera una plantilla para un 'Informe de Progreso Individual' para un estudiante de primaria. La plantilla debe estar en formato de texto simple, usando asteriscos para los títulos. Debe incluir secciones para: 1. Fortalezas Observadas (con ejemplos concretos), 2. Áreas de Oportunidad (con ejemplos), y 3. Próximos Pasos Sugeridos (acciones para el docente y el estudiante).";
+                    break;
+                case 'intervencion':
+                    title = "Generador de Sugerencias de Intervención";
+                    prompt = "Actúa como un especialista en didáctica. Un estudiante de 4to grado muestra un nivel 'Iniciado' en 'Producción Escrita', específicamente en conectar ideas (cohesión). Genera 3 sugerencias de intervención pedagógica concretas, breves y prácticas para que el docente aplique en el aula. Formatea la respuesta como una lista numerada.";
+                    break;
+                case 'fortalezas':
+                     title = "Generador de Análisis de Fortalezas";
+                    prompt = "Actúa como un coach educativo. Genera una plantilla para un informe de 'Análisis de Fortalezas Grupales' basado en observaciones de clase. La plantilla debe estar en texto simple y usar asteriscos para los títulos. Debe incluir: 1. Capacidad Destacada del Grupo, 2. Evidencias Observadas (ejemplos de interacciones o trabajos), y 3. Estrategias para Potenciar esta Fortaleza.";
+                    break;
+            }
+
+            modalTitle.textContent = title;
+            modalBody.innerHTML = '';
+            iaResult.innerHTML = '';
+            iaLoading.classList.remove('hidden');
+            openModal();
+
+            try {
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = { contents: chatHistory };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts) {
+                    const rawText = result.candidates[0].content.parts[0].text;
+                    let formattedHtml = rawText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+
+                    iaResult.innerHTML = `
+                        <div id="ai-report-content" class="p-4 bg-gray-50 rounded-lg border text-sm">${formattedHtml}</div>
+                        <div class="flex flex-wrap justify-center gap-4 mt-6">
+                            <button id="copy-ia-report-btn" onclick="copyIaReport()" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-300 flex items-center">
+                                <i data-lucide="copy" class="mr-2 h-5 w-5"></i> Copiar para Word
+                            </button>
+                            <button onclick="sendIaReportViaWhatsapp()" class="bg-green-100 text-green-700 font-semibold py-2 px-4 rounded-lg hover:bg-green-200 transition duration-300 flex items-center">
+                                <i data-lucide="send" class="mr-2 h-5 w-5"></i> Enviar por WhatsApp
+                            </button>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                } else {
+                    iaResult.innerHTML = '<p class="text-red-500">No se pudo obtener una respuesta válida de la IA.</p>';
+                }
+            } catch (error) {
+                console.error('Error al llamar a la API de Gemini:', error);
+                iaResult.innerHTML = `<p class="text-red-500">Ocurrió un error al contactar al asistente de IA.</p>`;
+            } finally {
+                iaLoading.classList.add('hidden');
+            }
+        }
+        
+        function copyIaReport() {
+            const contentEl = document.getElementById('ai-report-content');
+            if (!contentEl) return;
+
+            const textToCopy = contentEl.innerText;
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const button = document.getElementById('copy-ia-report-btn');
+                if (button) {
+                    button.innerHTML = '<i data-lucide="check" class="mr-2 h-5 w-5"></i> ¡Copiado!';
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        button.innerHTML = '<i data-lucide="copy" class="mr-2 h-5 w-5"></i> Copiar para Word';
+                        lucide.createIcons();
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error('Error al copiar texto: ', err);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function sendIaReportViaWhatsapp() {
+            const contentEl = document.getElementById('ai-report-content');
+            if (!contentEl) return;
+            
+            const reportTitle = document.getElementById('modal-title').textContent;
+            const content = contentEl.innerText; 
+
+            let whatsappText = `*INFORME ASISTIDO POR IA*\n======================\n\n`;
+            whatsappText += `*Tipo de Informe:* ${reportTitle}\n\n`;
+            whatsappText += `${content}`;
+            
+            const phoneNumber = "5493534619108";
+            const whatsappLink = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(whatsappText)}`;
+            
+            window.open(whatsappLink, '_blank');
+        }
+
+        // Lógica para Rúbricas Interactivas
+        const subjectSelect = document.getElementById('subject-area');
+        const gradeSelect = document.getElementById('grade-level');
+        const rubricsContainer = document.getElementById('rubrics-container');
+        const rubricForm = document.getElementById('rubric-form');
+        const obsDateInput = document.getElementById('obs-date');
+        obsDateInput.valueAsDate = new Date();
+
+        const goals = {
+            math: { first: "Uso de números naturales, comparación, orden, operaciones básicas.", second: "Resolución con múltiples pasos, uso de propiedades, proporcionalidad." },
+            lang: { first: "Comprensión de textos simples, producción de textos cortos, participación en intercambios.", second: "Comprensión de textos complejos, producción de diversos géneros, uso reflexivo de recursos lingüísticos." },
+            sci: { first: "Observación guiada, registro simple, descripción de fenómenos.", second: "Diseño de experimentos simples, análisis de datos, uso de TIC para comunicar." }
+        };
+
+        function updateCycleGoals() {
+            const grade = parseInt(gradeSelect.value);
+            const cycle = (grade >= 1 && grade <= 3) ? 'first' : 'second';
+            document.querySelectorAll('.cycle-goals').forEach(el => el.classList.remove('active'));
+            if (grade) {
+                ['math', 'lang', 'sci'].forEach(subject => {
+                    const goalsEl = document.querySelector(`#${subject}-goals`);
+                    if (goalsEl) {
+                        goalsEl.querySelector('p:last-child').textContent = goals[subject][cycle];
+                        goalsEl.classList.add('active');
+                    }
+                });
+            }
+        }
+
+        subjectSelect.addEventListener('change', (e) => {
+            const selectedSubject = e.target.value;
+            rubricsContainer.querySelectorAll('.rubric-table').forEach(rubric => rubric.classList.remove('active'));
+            if (selectedSubject) {
+                const activeRubric = document.getElementById(`rubrica-${selectedSubject}`);
+                if(activeRubric) activeRubric.classList.add('active');
+            }
+        });
+        
+        gradeSelect.addEventListener('change', updateCycleGoals);
+        updateCycleGoals();
+
+        function generateRubricReportText() {
+            const formData = new FormData(rubricForm);
+            const data = Object.fromEntries(formData.entries());
+
+            const observerRole = data['observer-role'] || 'No especificado';
+            const observerName = data['observer-name'] || 'No especificado';
+            const teacherOrGroup = data['teacher-name'] || 'No especificado';
+            const date = data['obs-date'] || 'No especificado';
+            const grade = gradeSelect.options[gradeSelect.selectedIndex].text || 'No especificado';
+            const classTopic = data['class-topic'] || 'No especificado';
+            const subjectText = subjectSelect.options[subjectSelect.selectedIndex].text || 'No especificado';
+            
+            let reportText = `INFORME DE EVALUACIÓN\n======================\n\n`;
+            reportText += `Observador: ${observerName} (${observerRole})\n`;
+            reportText += `Fecha: ${date}\n\n`;
+            reportText += `DATOS DE LA CLASE/PROYECTO\n-----------------------------------\n`;
+            reportText += `Docente/Grupo: ${teacherOrGroup}\n`;
+            reportText += `Grado: ${grade}\n`;
+            reportText += `Espacio/Tipo: ${subjectText}\n`;
+            reportText += `Tema de la Clase: ${classTopic}\n\n`;
+            reportText += `EVALUACIÓN DETALLADA\n-----------------------------------\n\n`;
+
+            const activeRubric = rubricsContainer.querySelector('.rubric-table.active');
+            if (activeRubric) {
+                const criteria = activeRubric.querySelectorAll('.p-4');
+                criteria.forEach((crit) => {
+                    const title = crit.querySelector('p.font-semibold').textContent;
+                    const selectedRadio = crit.querySelector('input[type="radio"]:checked');
+                    const achievement = selectedRadio ? selectedRadio.value : 'No evaluado';
+                    const observation = crit.querySelector('textarea').value || 'Sin observaciones.';
+                    
+                    reportText += `${title}\n  - Nivel: ${achievement}\n  - Observaciones: ${observation}\n\n`;
+                });
+            } else {
+                reportText += 'No se seleccionó un tipo de evaluación.\n';
+            }
+            return reportText;
+        }
+
+        rubricForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const reportText = generateRubricReportText();
+            let whatsappText = reportText
+                .replace(/INFORME DE EVALUACIÓN/g, '*INFORME DE EVALUACIÓN*')
+                .replace(/DATOS DE LA CLASE\/PROYECTO/g, '*DATOS DE LA CLASE/PROYECTO*')
+                .replace(/EVALUACIÓN DETALLADA/g, '*EVALUACIÓN DETALLADA*');
+
+            const phoneNumber = "5493534619108";
+            const whatsappLink = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(whatsappText)}`;
+            
+            window.open(whatsappLink, '_blank');
+        });
+
+        const copyRubricBtn = document.getElementById('copy-rubric-btn');
+        copyRubricBtn.addEventListener('click', () => {
+            const reportText = generateRubricReportText();
+            
+            const textArea = document.createElement("textarea");
+            textArea.value = reportText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                copyRubricBtn.innerHTML = '<i data-lucide="check" class="mr-2 h-5 w-5"></i> ¡Copiado!';
+                lucide.createIcons();
+                setTimeout(() => {
+                    copyRubricBtn.innerHTML = '<i data-lucide="copy" class="mr-2 h-5 w-5"></i> Copiar para Word';
+                    lucide.createIcons();
+                }, 2000);
+            } catch (err) {
+                console.error('Error al copiar texto: ', err);
+            }
+            document.body.removeChild(textArea);
+        });
+    </script>
+</body>
+</html>
