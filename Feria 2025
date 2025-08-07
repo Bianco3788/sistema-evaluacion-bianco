@@ -1,0 +1,639 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Star, MessageSquare, Calendar, Clipboard, Share2, Plus, BookOpen, ChevronDown, ChevronUp, CheckCircle, Award, BrainCircuit, Users, Database, FileText, Lightbulb, LogIn, UserCheck, User, Eye, Users2 } from 'lucide-react';
+import { initializeApp } from "firebase/app";
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, writeBatch, query } from "firebase/firestore";
+
+// --- DATOS INICIALES Y CONFIGURACIÓN ---
+
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+    apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET", messagingSenderId: "YOUR_MESSAGING_SENDER_ID", appId: "YOUR_APP_ID"
+};
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-feria-bianco-app';
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const improvementSources = [
+  { id: 1, category: "Evaluación", title: "Evaluar para Aprender (Sanmartí)" },
+  { id: 2, category: "Perspectiva STEAM", title: "Introducción a la Educación STEAM" },
+  { id: 3, category: "Capacidades Fundamentales", title: "Escuela Posible" },
+  { id: 4, category: "Desarrollo Sostenible", title: "Educación para el Desarrollo Sostenible (ODS)" }
+];
+
+const practicalSuggestions = {
+  1: [{ sourceId: 3, text: "Para fortalecer la 'Oralidad', podrían preparar una guía de entrevista para hacer a los vecinos sobre la historia del barrio." },{ sourceId: 2, text: "Enfoque STEAM: ¿Cómo podrían usar la 'Tecnología' para crear un mapa interactivo del barrio con fotos y sonidos grabados durante la exploración?" },{ sourceId: 4, text: "ODS: Conecten con el ODS 11 (Ciudades Sostenibles). ¿Qué elementos del paisaje contribuyen a que el barrio sea un lugar agradable para vivir?" },{ sourceId: 1, text: "Autoevaluación: Al final, cada estudiante podría dibujar la parte del barrio que más le gustó y explicar por qué, evaluando su propia conexión con el entorno." }],
+  2: [{ sourceId: 3, text: "Para evidenciar el 'Trabajo Colaborativo', podrían crear un recetario digital con las comidas típicas que investigaron, donde cada equipo aporta una receta." },{ sourceId: 4, text: "ODS: Vinculen el proyecto con el ODS 10 (Reducción de las Desigualdades), reflexionando sobre cómo la migración enriquece la cultura local." },{ sourceId: 2, text: "Enfoque STEAM: Integren 'Matemática' analizando datos sobre las corrientes migratorias en diferentes épocas en Villa María (ej. gráficos de barras)." },{ sourceId: 1, text: "Error como aprendizaje: ¿Encontraron alguna información contradictoria sobre alguna costumbre? Expliquen cómo resolvieron esa discrepancia." }],
+  3: [{ sourceId: 2, text: "Para profundizar en 'Ingeniería', diseñen y construyan diferentes tipos de títeres (planos, con volumen) y expliquen qué materiales funcionan mejor para las sombras." },{ sourceId: 3, text: "Fomenten la 'Creatividad' escribiendo un guion original para su teatro de sombras, en lugar de adaptar una historia conocida." },{ sourceId: 1, text: "Diversifiquen la evaluación: Graben la obra de teatro y pídanle a los padres que dejen comentarios sobre qué sintieron o qué historia entendieron." },{ sourceId: 4, text: "ODS: Conecten con el ODS 4 (Educación de Calidad) mostrando cómo su teatro puede ser una herramienta para enseñar conceptos a niños más pequeños." }],
+  4: [{ sourceId: 2, text: "Apliquen el ciclo de las 5E: 'Elaboren' un nuevo desafío, como crear una 'poción mágica' (mezcla segura) que tenga un color y una textura específicos." },{ sourceId: 3, text: "Fortalezcan el 'Pensamiento Crítico': ¿Toda mezcla se puede volver a separar? Diseñen un experimento para probarlo con una mezcla homogénea y una heterogénea." },{ sourceId: 1, text: "Para regular el aprendizaje, creen una 'guía de observación' para que los propios estudiantes registren los cambios que ven en sus experimentos." },{ sourceId: 4, text: "ODS: Vinculen con el ODS 12 (Producción y Consumo Responsables) investigando qué mezclas de productos de limpieza caseros son más amigables con el ambiente." }],
+  5: [{ sourceId: 2, text: "Integren 'Tecnología' diseñando un folleto digital sobre los beneficios de la vitamina C utilizando una herramienta de diseño gráfico online." },{ sourceId: 3, text: "Mejoren la 'Comunicación' preparando una breve charla para los grados más chicos sobre por qué es importante desayunar bien." },{ sourceId: 4, text: "Conecten con el ODS 3 (Salud y Bienestar) creando un gráfico que muestre cuánta azúcar tienen los jugos industriales en comparación con el jugo de naranja natural." },{ sourceId: 1, text: "Fomenten la 'Autoevaluación' con una encuesta final: 'Después de este proyecto, ¿cambiarías algo en tu desayuno? ¿Por qué?'" }],
+  6: [{ sourceId: 2, text: "Para el componente de 'Ingeniería', diseñen una maqueta de la 'plaza ideal' para el barrio, justificando la ubicación de los juegos, bancos y árboles." },{ sourceId: 3, text: "Desarrollen el 'Pensamiento Crítico' analizando: ¿La plaza es accesible para todos (personas con movilidad reducida, cochecitos de bebé)? ¿Qué se podría mejorar?" },{ sourceId: 4, text: "Vinculen con el ODS 11 (Ciudades Sostenibles) proponiendo un plan de acción para mantener la plaza más limpia, involucrando a la comunidad." },{ sourceId: 1, text: "Diversifiquen la evaluación: Creen un 'mapa de sentimientos' de la plaza, donde los estudiantes marquen con colores las zonas que les gustan más o menos y expliquen por qué." }],
+  7: [{ sourceId: 2, text: "Para fortalecer la 'Ingeniería', diseñen un sistema de recolección de agua de lluvia para regar una pequeña parte del espacio verde que están mejorando." },{ sourceId: 3, text: "Para evidenciar el 'Trabajo Colaborativo', creen un 'diario de equipo' en la carpeta de campo, donde cada día un miembro diferente anota los logros y desafíos del grupo." },{ sourceId: 4, text: "Conecten con el ODS 15 (Vida de Ecosistemas Terrestres) investigando qué plantas nativas podrían plantar para atraer mariposas y abejas." },{ sourceId: 1, text: "Muestren el 'error como aprendizaje': ¿Alguna planta no creció como esperaban? Expliquen las posibles causas y qué harían diferente la próxima vez." }],
+  8: [{ sourceId: 2, text: "Integren 'Arte' y 'Tecnología' transformando una de las historias creadas en un audiolibro con efectos de sonido, o en un cómic digital." },{ sourceId: 3, text: "Incentiven la 'Creatividad' proponiendo un final alternativo para un cuento clásico conocido, justificando los cambios en los personajes." },{ sourceId: 1, text: "Fomenten la 'Coevaluación': Intercambien sus historias con otro equipo y ofrezcan 2 estrellas (cosas que les encantaron) y 1 deseo (algo que les gustaría ver en la historia)." },{ sourceId: 4, text: "Vinculen con el ODS 4 (Educación de Calidad) organizando una sesión de lectura de sus cuentos para los niños de primer grado." }],
+  9: [{ sourceId: 2, text: "Para la parte de 'Tecnología', creen un blog o una cuenta en una red social para documentar su investigación y compartir los hallazgos con la comunidad." },{ sourceId: 3, text: "Fortalezcan el 'Pensamiento Crítico': Investiguen diferentes puntos de vista sobre la contaminación del río (industrias, gobierno, ecologistas) y presenten un resumen balanceado." },{ sourceId: 4, text: "Enfoquen en el ODS 6 (Agua Limpia y Saneamiento) y propongan una campaña de concientización simple para la escuela sobre el cuidado del agua." },{ sourceId: 1, text: "Regulen el aprendizaje: Antes de proponer soluciones, hagan una lista de 'Lo que sabemos', 'Lo que queremos saber' y 'Lo que aprendimos' sobre el río." }],
+  10: [{ sourceId: 2, text: "Para conectar con 'Ingeniería', diseñen un dispositivo simple para demostrar la reacción de la catalasa de la manera más visual y segura posible." },{ sourceId: 3, text: "Mejoren la 'Comunicación' creando una analogía o una metáfora para explicarle a alguien sin conocimientos de química qué es una enzima." },{ sourceId: 1, text: "Muestren el 'proceso de aprendizaje' detallando en la carpeta de campo los experimentos fallidos y cómo ajustaron las variables (concentración, temperatura) para obtener mejores resultados." },{ sourceId: 4, text: "Vinculen con el ODS 3 (Salud y Bienestar) explicando la importancia de esta reacción en los primeros auxilios para limpiar heridas." }],
+  11: [{ sourceId: 2, text: "Destaquen la 'Ingeniería' realizando pruebas de resistencia o flexibilidad de los prototipos que crearon y registren los datos en tablas y gráficos." },{ sourceId: 3, text: "Incentiven la 'Creatividad' organizando un concurso de ideas para el uso más original de un neumático reciclado dentro de la escuela." },{ sourceId: 4, text: "Conecten con el ODS 12 (Producción y Consumo Responsables) calculando cuántos neumáticos se desechan en Villa María por año y el impacto de su proyecto." },{ sourceId: 1, text: "Para la 'autoevaluación', cada miembro del equipo puede escribir qué parte del proceso de diseño le resultó más difícil y cómo la superó." }],
+  12: [{ sourceId: 2, text: "Fortalezcan la 'Tecnología' creando códigos QR para su stand que lleven a videos de las danzas, audios de las entrevistas o a las letras de las canciones que investigaron." },{ sourceId: 3, text: "Desarrollen el 'Pensamiento Crítico': ¿Cómo han cambiado las costumbres con el tiempo? ¿Por qué creen que algunas se mantienen y otras se pierden?" },{ sourceId: 4, text: "Vinculen con el ODS 11 (Ciudades y Comunidades Sostenibles), en su meta de proteger el patrimonio cultural. Argumenten por qué es importante transmitir estas costumbres." },{ sourceId: 1, text: "Para la 'Coevaluación', inviten a otro grado a ver su presentación y luego realicen una pequeña encuesta sobre qué fue lo que más les interesó y por qué." }]
+};
+
+const initialProjects = [
+    { id: 1, grade: "1º A y B", title: "Descubrimos el paisaje del barrio de nuestra escuela", axis: "Arte y Movimiento", description: "Propone explorar y reflexionar sobre el paisaje del barrio a partir de la observación, la expresión artística, el trabajo colaborativo y el contacto directo con la comunidad.", strengths: ["Fuerte conexión con el entorno local.", "Enfoque interdisciplinario.", "Promueve el aprendizaje activo."], suggestions: [], evaluation: null },
+    { id: 2, grade: "1º C y D", title: "Inmigrantes en Villa María y su huella cultural", axis: "Ciencias", description: "Reconocimiento de los inmigrantes que llegaron a Villa María y las huellas culturales que dejaron, especialmente en la gastronomía, el lenguaje y las costumbres.", strengths: ["Relevancia cultural e histórica.", "Potencial para participación familiar.", "Integración de áreas."], suggestions: [], evaluation: null },
+    { id: 3, grade: "2º A y B", title: "Exploradores de luz y sombra: Nuestro teatro mágico", axis: "Ciencias", description: "Permite a los estudiantes investigar las propiedades de la luz, las sombras y los materiales mediante experimentación, diseño y expresión artística.", strengths: ["Alta creatividad y componente lúdico.", "Integración de ciencia y arte.", "Fomenta la experimentación."], suggestions: [], evaluation: null },
+    { id: 4, grade: "2º C y D", title: "Hojitas de arcoíris", axis: "Ciencias", description: "Los estudiantes de segundo investigaron cómo obtener tintes naturales de vegetales como remolacha, repollo y acelga, y los aplicaron en la creación de una agenda artesanal. El proyecto integró Ciencias Naturales y Tecnología, promoviendo la curiosidad, el trabajo experimental y la creatividad en una experiencia que une ciencia, arte y utilidad.", strengths: ["Conecta la química con la vida diaria.", "Metodología práctica y experimental.", "Desarrollo del pensamiento científico."], suggestions: [], evaluation: null },
+    { id: 5, grade: "3º A y B", title: "EXPRIMIENDO SALUD Descubriendo el poder del jugo de naranja", axis: "Ciencias", description: "Este proyecto busca que los estudiantes exploren desde la ciencia, la importancia del jugo de naranja y sus propiedades para la salud de las personas.", strengths: ["Tema relevante para la salud.", "Combina ciencias y hábitos saludables.", "Potencial para actividades prácticas."], suggestions: [], evaluation: null },
+    { id: 6, grade: "3º C y D", title: "La plaza: un tesoro en nuestra ciudad", axis: "Ciencias", description: "Propone investigar el valor de las plazas como espacios públicos integrales en la vida ciudadana.", strengths: ["Fomenta la ciudadanía.", "Permite la investigación de campo.", "Enfoque cívico y social."], suggestions: [], evaluation: null },
+    { id: 7, grade: "4º A y B", title: "¡Niños en acción! Mejorando los espacios verdes de nuestra ciudad", axis: "Matemática y Tecnología", description: "Busca involucrar en la mejora de los espacios verdes urbanos mediante una metodología activa e interdisciplinaria.", strengths: ["Impacto comunitario directo.", "Promueve conciencia ambiental.", "Integra múltiples disciplinas."], suggestions: [], evaluation: null },
+    { id: 8, grade: "4º C", title: "Un Viaje por sus Animales Autóctonos y en Peligro", axis: "Ciencias", description: "Estudiantes de cuarto grado, a través de este proyecto, buscan explorar la rica fauna autóctona de Córdoba, destacando las especies consideradas 'raras', muchas de ellas en peligro de extinción, a través de la investigación, el diálogo y la creación visual.", strengths: ["Genera conciencia sobre la biodiversidad local.", "Integra investigación con expresión artística.", "Tema de alto interés para los estudiantes."], suggestions: [], evaluation: null },
+    { id: 9, grade: "4º D", title: "El poder de la imaginación", axis: "Arte y Movimiento", description: "Estudiantes de cuarto grado exploran cómo la escritura creativa y la imaginación potencian sus habilidades narrativas. A través de actividades guiadas, recursos digitales y autoevaluación, mejoran la expresión escrita y descubren el placer de crear historias propias.", strengths: ["Desarrollo de capacidades de comunicación.", "Uso de recursos digitales.", "Fomenta la autoevaluación."], suggestions: [], evaluation: null },
+    { id: 10, grade: "5º A y B", title: "El latido del Ctalamochita", axis: "Ciencias", description: "Estudiantes de quinto grado investigan el impacto de la contaminación del río Ctalamochita en Villa María, integrando ciencias, tecnología, arte, matemática y ciudadanía para comprender el problema y proponer soluciones desde la escuela.", strengths: ["Aborda una problemática ambiental local.", "Excelente ejemplo de enfoque STEAM.", "Fomenta el compromiso social."], suggestions: [], evaluation: null },
+    { id: 11, grade: "5º C y D", title: "Mezclas al rescate, ciencia en acción", axis: "Ciencias", description: "Se investiga por qué el agua oxigenada hace espuma al contacto con la sangre, descubriendo que es una reacción química causada por la enzima catalasa.", strengths: ["Basado en la curiosidad científica.", "Sólido rigor experimental.", "Promueve la comunicación científica."], suggestions: [], evaluation: null },
+    { id: 12, grade: "6º A y B", title: "¡Reinventa tu ruta: neumáticos que cobran vida!", axis: "Matemática y Tecnología", description: "Investigan el reciclaje de neumáticos fuera de uso, diseñando prototipos útiles como pisos de seguridad y mobiliario escolar.", strengths: ["Enfoque en economía circular.", "Solución creativa a un problema real.", "Combina ingeniería y conciencia ambiental."], suggestions: [], evaluation: null },
+    { id: 13, grade: "6º C y D", title: "Reviviendo las costumbres argentinas", axis: "Arte y Movimiento", description: "Estudiantes de sexto grado investigan el folklore argentino, integrando arte, historia y tecnología para valorar la cultura nacional.", strengths: ["Valoración del patrimonio cultural.", "Integración de tecnología y tradición.", "Fomenta el contacto intergeneracional."], suggestions: [], evaluation: null }
+];
+
+const scoreLevels = { 5: "Destacado", 4: "Logrado", 3: "En Proceso", 2: "Inicial", 1: "No Evidenciado" };
+const evaluationRubrics = {
+  general: [
+    { id: 'g1', criterion: "Planteamiento y Relevancia Curricular", indicators: { 5: "El problema o pregunta de investigación es excepcionalmente claro, original y se alinea de manera explícita y profunda con el currículo. Demuestra una adecuación sobresaliente al nivel y contexto.", 4: "El problema o pregunta es claro, pertinente y se alinea adecuadamente con el currículo del nivel y la modalidad. El proyecto es adecuado al contexto educativo.", 3: "El problema o pregunta está formulado, pero podría ser más preciso o su vinculación con el currículo podría ser más explícita. La adecuación al contexto es perceptible.", 2: "El problema o pregunta es vago, confuso o su conexión con el currículo es tangencial o forzada.", 1: "No se presenta un problema o pregunta de investigación claro, o este es irrelevante para el marco curricular." }},
+    { id: 'g2', criterion: "Originalidad, Innovación y Creatividad", indicators: { 5: "El proyecto aporta ideas, enfoques o soluciones radicalmente nuevas y creativas, demostrando un alto grado de pensamiento divergente y originalidad.", 4: "El proyecto es innovador y creativo, presentando nuevas ideas o enfoques para la enseñanza y el aprendizaje de manera efectiva.", 3: "El proyecto presenta elementos de creatividad, pero se basa principalmente en ideas o enfoques convencionales.", 2: "Las ideas presentadas son convencionales y carecen de un aporte innovador o creativo significativo.", 1: "El proyecto no presenta elementos de originalidad, innovación o creatividad." }},
+    { id: 'g3', criterion: "Rigor Metodológico y Desarrollo", indicators: { 5: "La estructura del proyecto es impecable, con una coherencia lógica excepcional entre sus partes. El desarrollo está completo, y las conclusiones son robustas y bien fundamentadas.", 4: "El proyecto está bien estructurado, es coherente y claro. Se presenta como un trabajo terminado con conclusiones pertinentes.", 3: "El proyecto muestra una estructura lógica y está en una fase avanzada de desarrollo, aunque las conclusiones sean preliminares o estén ausentes.", 2: "La estructura del proyecto es débil o incoherente. El desarrollo es incipiente y carece de un método claro.", 1: "El proyecto carece de estructura, coherencia y evidencia de un proceso metodológico." }},
+    { id: 'g4', criterion: "Integración Disciplinaria y Enfoque STEAM", indicators: { 5: "Integra de manera sinérgica y explícita tres campos o espacios curriculares, demostrando un enfoque STEAM ampliado de alta calidad y pertinencia.", 4: "Integra de manera clara y funcional dos o más campos de conocimiento o espacios curriculares, alineándose con un enfoque de proyecto interdisciplinario.", 3: "Se evidencia la intención de integrar más de un área, pero la articulación es superficial o está en desarrollo.", 2: "El proyecto se centra en una única disciplina sin intentos evidentes de integración.", 1: "No hay evidencia de integración disciplinaria." }},
+    { id: 'g5', criterion: "Impacto y Vínculo Comunitario", indicators: { 5: "El proyecto aborda una problemática relevante del entorno, tiene un potencial de impacto significativo y propone un involucramiento profundo con la comunidad. Contempla explícitamente algún ODS.", 4: "El proyecto está contextualizado, aborda una situación cercana a la realidad del entorno y demuestra tener impacto o involucramiento con la comunidad educativa.", 3: "El proyecto intenta vincularse con una problemática del entorno, pero su potencial de impacto o la relación con la comunidad es limitado o teórico.", 2: "La relación del proyecto con la comunidad o su potencial de impacto es vago o inexistente.", 1: "El proyecto está descontextualizado y no guarda relación con la comunidad ni con problemáticas de impacto social o ambiental." }},
+    { id: 'g6', criterion: "Evidencia de Aprendizajes y Capacidades", indicators: { 5: "Se evidencian logros de aprendizaje excepcionales y el desarrollo de capacidades transversales (ej. comunicación, pensamiento crítico) de manera sobresaliente en los estudiantes.", 4: "Se demuestra una clara relación entre los objetivos de enseñanza y los logros de aprendizaje alcanzados por los estudiantes.", 3: "Se perciben algunos logros de aprendizaje en los estudiantes, aunque la conexión con los objetivos no es del todo explícita.", 2: "La evidencia de los aprendizajes alcanzados por los estudiantes es escasa o poco clara.", 1: "No se evidencia que el proyecto haya generado aprendizajes significativos en los estudiantes." }},
+    { id: 'g7', criterion: "Calidad de la Presentación y Comunicación", indicators: { 5: "La exposición oral es excepcionalmente clara, fluida y persuasiva. Los materiales de apoyo (stand, póster) son de alta calidad y comunican eficazmente el proyecto. Demuestran dominio total del tema.", 4: "La presentación es clara y coherente. Los estudiantes comunican las ideas principales del proyecto de manera efectiva y utilizan adecuadamente los materiales de apoyo.", 3: "La comunicación es comprensible, pero podría mejorar en claridad, estructura o fluidez. Los materiales de apoyo son adecuados pero básicos.", 2: "La presentación es confusa, desorganizada o difícil de seguir. Los estudiantes muestran dificultades para comunicar las ideas del proyecto.", 1: "La comunicación es ineficaz o no se realiza la presentación del proyecto." }},
+  ],
+  deliverables: [
+    { id: 'd1', criterion: "Carpeta de Campo (CC)", indicators: { 5: "El registro es excepcionalmente detallado, organizado cronológicamente y refleja con total fidelidad y riqueza el proceso de investigación, incluyendo aciertos, errores y reflexiones.", 4: "El registro es completo, ordenado y sistemático. Refleja adecuadamente el trabajo de investigación realizado por los estudiantes.", 3: "El registro es adecuado pero podría ser más detallado, sistemático u organizado. Contiene los elementos básicos del proceso.", 2: "El registro es incompleto, desorganizado o no refleja claramente el proceso de investigación.", 1: "No se presenta la Carpeta de Campo o su contenido es inadecuado." }},
+    { id: 'd2', criterion: "Informe de Trabajo (IT)", indicators: { 5: "El informe sigue una estructura académica impecable, con una redacción clara, precisa y uso experto del lenguaje técnico. La coherencia interna es sobresaliente.", 4: "El informe presenta la estructura formal requerida (resumen, introducción, etc.), es coherente y está redactado con claridad y uso apropiado del lenguaje técnico.", 3: "El informe presenta la mayoría de las secciones requeridas, pero la estructura o la redacción podrían mejorar en claridad, coherencia o rigor.", 2: "El informe carece de una estructura clara, la redacción es confusa o el contenido no se corresponde con el trabajo realizado.", 1: "No se presenta el Informe de Trabajo o su contenido es irrelevante." }},
+    { id: 'd3', criterion: "Registro Pedagógico (RP)", indicators: { 5: "La reflexión docente es profunda, crítica y detallada. Evidencia una planificación curricular sólida, intervenciones pedagógicas intencionadas y un análisis exhaustivo de la experiencia.", 4: "El registro documenta adecuadamente la planificación, las estrategias y las intervenciones docentes, incluyendo una reflexión pertinente sobre el proceso y los resultados.", 3: "El registro describe el proceso desde la perspectiva docente, pero la reflexión sobre la propia práctica es superficial o se limita a una descripción de actividades.", 2: "El registro es meramente descriptivo, sin reflexión pedagógica, o la planificación presentada es muy básica.", 1: "No se presenta el Registro Pedagógico o su contenido no cumple con los requisitos." }},
+    { id: 'd4', criterion: "Video de Registro (VR)", indicators: { 5: "El video es creativo, conciso y comunica de manera excepcionalmente efectiva la esencia, el proceso y los resultados del proyecto en el tiempo estipulado.", 4: "El video es claro, está bien estructurado y logra sintetizar y presentar adecuadamente el proyecto.", 3: "El video presenta el proyecto, pero podría mejorar en su capacidad de síntesis, claridad o calidad audiovisual.", 2: "El video es confuso, excede el tiempo, o no logra comunicar los aspectos centrales del proyecto.", 1: "No se presenta el Video de Registro." }},
+  ],
+  "Ciencias": [
+      { id: 'c1', criterion: "Curiosidad y Formulación de Preguntas", indicators: { 5: "La pregunta de investigación es excepcionalmente genuina, clara y surge de la curiosidad de los estudiantes, guiando toda la investigación de manera explícita.", 4: "La pregunta es clara, pertinente y nace del interés de los estudiantes sobre su entorno natural o social.", 3: "La pregunta está formulada, pero podría ser más clara o estar mejor conectada con la curiosidad genuina de los estudiantes.", 2: "La pregunta es vaga, impuesta o no se relaciona directamente con la curiosidad de los niños.", 1: "No se presenta una pregunta de investigación." }},
+      { id: 'c2', criterion: "Proceso de Indagación", indicators: { 5: "La recolección de datos (observaciones, dibujos, notas, etc.) es muy detallada, sistemática y refleja una exploración rica y profunda del tema.", 4: "Se realizan observaciones y se recolectan datos de manera organizada y adecuada para responder la pregunta.", 3: "Se recolectan algunos datos, pero el proceso es poco sistemático o la información es superficial.", 2: "La recolección de datos es escasa, desorganizada o no es pertinente para la investigación.", 1: "No hay evidencia de un proceso de indagación." }},
+      { id: 'c3', criterion: "Explicación y Comunicación de Hallazgos", indicators: { 5: "Las explicaciones sobre los descubrimientos son muy claras, coherentes y responden de forma profunda a la pregunta inicial, utilizando un lenguaje propio y rico.", 4: "Los estudiantes explican sus hallazgos de forma clara, estableciendo una conexión lógica con su pregunta inicial.", 3: "Intentan explicar sus hallazgos, pero la conexión con la pregunta es débil o las explicaciones son incompletas.", 2: "Las explicaciones son confusas, incorrectas o no se relacionan con la investigación realizada.", 1: "No se comunican los hallazgos o descubrimientos." }},
+  ],
+  "Arte y Movimiento": [
+      { id: 'a1', criterion: "Intención Expresiva y Creatividad", indicators: { 5: "La producción expresa ideas, sentimientos o narrativas de forma muy original, personal y con un alto grado de creatividad.", 4: "La producción expresa claramente una intención (contar algo, mostrar una emoción) a través del lenguaje artístico o del movimiento elegido.", 3: "Se percibe una intención expresiva, pero la ejecución es convencional o la idea no se transmite con claridad.", 2: "La creatividad es limitada o la intención expresiva del trabajo no es clara.", 1: "No hay evidencia de una intención expresiva o creativa." }},
+      { id: 'a2', criterion: "Exploración de Materiales y Técnicas", indicators: { 5: "Exploran y utilizan materiales, herramientas o técnicas corporales de forma innovadora y con gran destreza para su edad, ampliando sus posibilidades expresivas.", 4: "Utilizan adecuadamente los materiales o las técnicas corporales para lograr el objetivo expresivo del proyecto.", 3: "La exploración de materiales o técnicas es básica y se limita a usos convencionales.", 2: "El uso de materiales o técnicas es inadecuado, poco seguro o no contribuye a la producción.", 1: "No hay evidencia de exploración de materiales o técnicas." }},
+      { id: 'a3', criterion: "Producción y Socialización", indicators: { 5: "La producción final es de alta calidad estética y la socializan con gran entusiasmo y claridad, explicando su proceso creativo y el significado de su obra.", 4: "La producción final es coherente con el proceso y los estudiantes son capaces de compartirla y contar sobre su trabajo de manera adecuada.", 3: "La producción está terminada, pero la socialización es breve, poco clara o los estudiantes muestran dificultad para explicar su proceso.", 2: "La producción está incompleta o la socialización es confusa y no permite comprender el trabajo.", 1: "No se presenta una producción final o no se socializa." }},
+  ],
+  "Matemática y Tecnología": [
+      { id: 'm1', criterion: "Identificación de un Problema o Desafío", indicators: { 5: "El problema o desafío es muy relevante para su entorno, está definido con una claridad excepcional y es ideal para una solución matemática o tecnológica.", 4: "El problema o desafío es claro, concreto y se puede abordar de manera efectiva utilizando la matemática o la tecnología.", 3: "El problema está identificado, pero es algo vago, general o su conexión con una solución matemática/tecnológica no es del todo clara.", 2: "El problema es poco claro o no es adecuado para ser resuelto con herramientas matemáticas o tecnológicas a nivel primario.", 1: "No se identifica un problema o desafío concreto." }},
+      { id: 'm2', criterion: "Uso de Herramientas y Conceptos", indicators: { 5: "Aplican conceptos (formas, números, patrones) y herramientas (medición, construcción) de forma creativa, precisa y central para resolver el problema.", 4: "Utilizan conceptos y herramientas matemáticas o tecnológicas de forma correcta y funcional para desarrollar el proyecto.", 3: "El uso de conceptos o herramientas es básico, presenta algunos errores o es periférico al problema principal.", 2: "El uso de conceptos o herramientas es incorrecto o no es pertinente para el proyecto.", 1: "No se utilizan conceptos o herramientas relevantes." }},
+      { id: 'm3', criterion: "Solución o Producto Creado", indicators: { 5: "La solución o producto es muy original, funciona perfectamente y los estudiantes explican su proceso de creación con gran detalle y comprensión de los principios aplicados.", 4: "La solución o producto es funcional, responde al problema planteado y los estudiantes pueden explicar cómo lo hicieron y por qué funciona.", 3: "La solución o producto es parcial, funciona con limitaciones o la explicación sobre su construcción es básica.", 2: "La solución o producto no es funcional o no responde al problema planteado.", 1: "No se presenta una solución o producto tangible." }},
+  ]
+};
+
+// --- COMPONENTES DE LA UI ---
+
+const AuthScreen = ({ onSelectRole }) => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+        <div className="text-center mb-10">
+            <h1 className="text-4xl font-black text-blue-800">Feria de Ciencias STEAM</h1>
+            <p className="text-lg text-gray-500">88° Aniversario - Escuela Bianco</p>
+        </div>
+        <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg">
+            <h2 className="text-2xl font-bold text-center text-gray-700 mb-6">Bienvenido/a</h2>
+            <p className="text-center text-gray-600 mb-8">Por favor, ingrese para continuar.</p>
+            <div className="space-y-4">
+                <button onClick={() => onSelectRole('Evaluador')} className="w-full flex items-center justify-center p-4 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"><Award className="mr-2" />Ingresar como Evaluador</button>
+            </div>
+        </div>
+    </div>
+);
+
+const ProjectCard = ({ project, onSelect }) => (
+  <div className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 p-6 cursor-pointer border border-gray-200 flex flex-col justify-between" onClick={() => onSelect(project)}>
+    <div>
+      <h3 className="text-xl font-bold text-blue-800 mb-2">
+        {project.title}
+        <span className="block text-sm font-medium text-blue-600 mt-1">{project.grade}</span>
+      </h3>
+      <p className="text-gray-600 text-sm">{project.description}</p>
+    </div>
+    <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
+      <div className="flex items-center"><MessageSquare size={14} className="mr-1" /><span>{project.suggestions.length} Sugerencias</span></div>
+      <div className="flex items-center">{project.evaluation ? <CheckCircle size={14} className="text-green-500 mr-1" /> : <Calendar size={14} className="mr-1" />}<span>{project.evaluation ? 'Evaluado' : 'Pendiente'}</span></div>
+    </div>
+  </div>
+);
+
+const SuggestionMenu = ({ onAddSuggestion, project }) => {
+    const [openCategory, setOpenCategory] = useState(null);
+    const handleAdd = (suggestionText, source) => {
+        onAddSuggestion(project.id, { text: suggestionText, source: source.title });
+    };
+    return (
+        <div className="bg-gray-100 p-4 rounded-lg mt-6">
+            <h4 className="font-bold text-lg mb-4 text-gray-700">Añadir una Sugerencia Práctica para este Proyecto</h4>
+            <div className="space-y-2">
+                {improvementSources.map(source => (
+                    <div key={source.id} className="border rounded-lg bg-white">
+                        <button onClick={() => setOpenCategory(openCategory === source.id ? null : source.id)} className="w-full flex justify-between items-center p-3 text-left font-semibold text-blue-700">
+                            <span>{source.category} <span className="text-xs font-normal text-gray-500">- {source.title}</span></span>
+                            {openCategory === source.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </button>
+                        {openCategory === source.id && (
+                            <div className="p-3 border-t">
+                                <ul className="space-y-2">
+                                    {(practicalSuggestions[project.id] || []).filter(sug => sug.sourceId === source.id).map((suggestion, index) => (
+                                        <li key={index} className="flex items-start space-x-3">
+                                            <button onClick={() => handleAdd(suggestion.text, source)} className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"><Plus size={16} /></button>
+                                            <span className="text-sm text-gray-700 flex-1 py-2">{suggestion.text}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const ProjectDetail = ({ project, onBack, onAddSuggestion, role }) => (
+    <div className="bg-gray-50 p-4 sm:p-6 md:p-8 rounded-lg">
+        <button onClick={onBack} className="mb-6 text-blue-600 hover:text-blue-800 font-semibold text-sm">&larr; Volver a todos los proyectos</button>
+        <div className="bg-white p-6 rounded-xl shadow-md">
+            <h2 className="text-3xl font-extrabold text-blue-900 mb-1">{project.title}</h2>
+            <p className="text-lg font-semibold text-blue-700 mb-4">{project.grade}</p>
+            <p className="text-gray-700 mb-6">{project.description}</p>
+            <div className="mb-8">
+                <h3 className="text-xl font-bold text-gray-800 mb-3 border-b-2 border-blue-200 pb-2 flex items-center"><Star size={20} className="text-yellow-500 mr-2" />Fortalezas del Proyecto</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-600">{project.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul>
+            </div>
+            <div>
+                <h3 className="text-xl font-bold text-gray-800 mb-3 border-b-2 border-green-200 pb-2 flex items-center"><MessageSquare size={20} className="text-green-600 mr-2" />Sugerencias de Mejora</h3>
+                {project.suggestions.length > 0 ? (
+                    <div className="space-y-4 mb-6">
+                        {project.suggestions.map((sug, i) => (
+                            <div key={i} className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
+                                <p className="text-gray-800">{sug.text}</p>
+                                <p className="text-xs text-gray-500 mt-2"><BookOpen size={12} className="inline mr-1" /><strong>Fuente:</strong> {sug.source}</p>
+                            </div>
+                        ))}
+                    </div>
+                ) : <p className="text-gray-500 italic mb-6">Aún no hay sugerencias para este proyecto.</p>}
+                {(role === 'Docente' || role === 'Evaluador') && <SuggestionMenu onAddSuggestion={onAddSuggestion} project={project} />}
+            </div>
+        </div>
+    </div>
+);
+
+const RubricItem = ({ item, score, onChange }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-gray-800">{item.criterion}</h4>
+            <div className="flex items-center justify-between mt-2">
+                <div className="flex space-x-1">
+                    {[1, 2, 3, 4, 5].map(level => (
+                        <button key={level} onClick={() => onChange(item.id, level)} className={`w-8 h-8 rounded-full text-sm font-bold transition-all ${score === level ? 'bg-purple-600 text-white scale-110' : 'bg-gray-200 text-gray-700 hover:bg-purple-200'}`}>{level}</button>
+                    ))}
+                </div>
+                <button onClick={() => setIsOpen(!isOpen)} className="text-xs text-blue-600 hover:underline">{isOpen ? 'Ocultar detalles' : 'Ver detalles'}</button>
+            </div>
+            {score > 0 && <p className="mt-2 text-sm text-purple-800 font-semibold">{score} - {scoreLevels[score]}</p>}
+            {isOpen && (
+                <div className="mt-3 space-y-1 text-xs text-gray-600">
+                    {[5, 4, 3, 2, 1].map(level => (
+                        <p key={level} className={score === level ? 'font-bold' : ''}><strong>{level}:</strong> {item.indicators[level]}</p>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const RubricSection = ({ title, items, scores, onChange }) => (
+    <div>
+        <h3 className="text-2xl font-bold text-gray-800 capitalize mb-4 border-b-2 border-gray-200 pb-2">{title}</h3>
+        <div className="space-y-4">
+            {items.map(item => <RubricItem key={item.id} item={item} score={scores[item.id] || 0} onChange={onChange} />)}
+        </div>
+    </div>
+);
+
+const EvaluationForm = ({ project, onBack, onSaveEvaluation }) => {
+  const [scores, setScores] = useState(() => {
+    if (project.evaluation) return project.evaluation;
+    const initialScores = {};
+    Object.keys(evaluationRubrics).forEach(category => {
+        evaluationRubrics[category].forEach(item => { initialScores[item.id] = 0; });
+    });
+    initialScores.comments = '';
+    return initialScores;
+  });
+
+  const handleScoreChange = (id, value) => setScores(prev => ({ ...prev, [id]: parseInt(value) }));
+  
+  const totalScore = useMemo(() => {
+      let total = 0, maxTotal = 0;
+      const specificRubric = evaluationRubrics[project.axis] || [];
+      [...evaluationRubrics.general, ...evaluationRubrics.deliverables, ...specificRubric].forEach(item => {
+          total += scores[item.id] || 0;
+          maxTotal += 5; // Assuming max score is 5 for all
+      });
+      return maxTotal > 0 ? ((total / maxTotal) * 100).toFixed(1) : 0;
+  }, [scores, project.axis]);
+
+  const specificRubricItems = evaluationRubrics[project.axis] || [];
+
+  return (
+    <div className="bg-gray-50 p-4 sm:p-6 md:p-8 rounded-lg">
+      <button onClick={onBack} className="mb-6 text-blue-600 hover:text-blue-800 font-semibold text-sm">&larr; Volver a la evaluación</button>
+      <div className="bg-white p-6 rounded-xl shadow-md">
+        <h2 className="text-3xl font-extrabold text-purple-900 mb-2">Evaluación del Proyecto</h2>
+        <p className="text-xl font-semibold text-gray-700 mb-6">{project.title} - {project.grade}</p>
+        <div className="space-y-8">
+            <RubricSection title="Valoración General" items={evaluationRubrics.general} scores={scores} onChange={handleScoreChange} />
+            <RubricSection title="Valoración de Entregables" items={evaluationRubrics.deliverables} scores={scores} onChange={handleScoreChange} />
+            {specificRubricItems.length > 0 && (
+                <RubricSection title={`Rúbrica Específica: ${project.axis}`} items={specificRubricItems} scores={scores} onChange={handleScoreChange} />
+            )}
+            <div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-4 border-b-2 border-gray-200 pb-2">Comentarios y Observaciones Finales</h3>
+                <textarea rows="4" className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500" placeholder="Añadir un comentario constructivo..." value={scores.comments} onChange={(e) => setScores(prev => ({...prev, comments: e.target.value}))} />
+            </div>
+        </div>
+        <div className="mt-8 pt-6 border-t-2 border-dashed">
+            <div className="flex flex-col md:flex-row justify-between items-center bg-purple-50 p-4 rounded-lg">
+                <div className="mb-4 md:mb-0">
+                    <span className="text-lg font-semibold text-gray-600">Puntaje Total:</span>
+                    <span className="text-4xl font-extrabold text-purple-800 ml-3">{totalScore}%</span>
+                </div>
+                <button onClick={() => onSaveEvaluation(project.id, scores)} className="w-full md:w-auto bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center">
+                    <CheckCircle size={20} className="mr-2"/> Guardar Evaluación
+                </button>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EvaluationDashboard = ({ projects, onSelectProject, onGenerateReport, role }) => {
+    const evaluatedProjects = projects.filter(p => p.evaluation);
+    const pendingProjects = projects.filter(p => !p.evaluation);
+    const calculateScore = (project) => {
+        if (!project.evaluation) return 0;
+        let total = 0, maxTotal = 0;
+        const specificRubric = evaluationRubrics[project.axis] || [];
+        [...evaluationRubrics.general, ...evaluationRubrics.deliverables, ...specificRubric].forEach(item => {
+            total += project.evaluation[item.id] || 0;
+            maxTotal += 5;
+        });
+        return maxTotal > 0 ? ((total / maxTotal) * 100).toFixed(1) : 0;
+    };
+
+    return (
+        <div className="p-4 sm:p-6 md:p-8">
+            <h2 className="text-3xl font-extrabold text-gray-800 mb-6">Panel de Evaluación</h2>
+            <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 className="text-xl font-bold text-gray-700 mb-4">Proyectos Pendientes de Evaluación</h3>
+                    <div className="space-y-3">{pendingProjects.length > 0 ? pendingProjects.map(p => (<div key={p.id} onClick={() => onSelectProject(p)} className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow cursor-pointer flex justify-between items-center"><span className="font-semibold text-gray-800">{p.title} ({p.grade})</span><button className="text-sm bg-blue-500 text-white py-1 px-3 rounded-full hover:bg-blue-600">Evaluar</button></div>)) : <p className="text-gray-500 italic">¡Todos los proyectos han sido evaluados!</p>}</div>
+                </div>
+                <div>
+                    <h3 className="text-xl font-bold text-gray-700 mb-4">Proyectos Evaluados</h3>
+                    <div className="space-y-3">{evaluatedProjects.length > 0 ? evaluatedProjects.map(p => (<div key={p.id} className="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500"><div className="flex justify-between items-center"><div><p className="font-semibold text-gray-800">{p.title} ({p.grade})</p><p className="text-sm text-green-700 font-bold">Puntaje: {calculateScore(p)}%</p></div><button onClick={() => onGenerateReport(p)} className="text-sm bg-gray-600 text-white py-1 px-3 rounded-full hover:bg-gray-700">Generar Informe</button></div></div>)) : <p className="text-gray-500 italic">Ningún proyecto evaluado todavía.</p>}</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const Agenda = () => {
+    const [currentDate] = useState(new Date());
+    const registrationDeadline = new Date('2025-08-20T23:59:00');
+    const fairDate = new Date('2025-08-28T09:00:00');
+    const regionalDeadlineStart = new Date('2025-08-29T00:00:00');
+    const regionalDeadlineEnd = new Date('2025-09-05T23:59:00');
+    const agendaItems = [
+        { date: 'Semana Actual - 20 de Agosto, 2025', title: 'Registro de Proyectos', description: 'Cada docente asesor debe completar el formulario online de registro para la instancia Escolar/Institucional.', status: currentDate <= registrationDeadline ? 'active' : 'past' },
+        { date: 'Hasta el 28 de Agosto, 2025', title: 'Preparación y Valoración Institucional', description: 'Los equipos directivos conforman las Comisiones Valoradoras. Los equipos docentes preparan las grillas de valoración y los proyectos.', status: currentDate <= fairDate ? 'active' : 'past' },
+        { date: '28 de Agosto, 2025', title: 'Jornada de Feria Escolar/Institucional', description: 'Exhibición y socialización presencial de todos los proyectos a la comunidad educativa.', status: currentDate.toISOString().slice(0,10) === fairDate.toISOString().slice(0,10) ? 'today' : (currentDate < fairDate ? 'upcoming' : 'past') },
+        { date: '29 de Agosto - 5 de Septiembre, 2025', title: 'Inscripción a Instancia Departamental/Regional', description: 'Selección institucional de los proyectos destacados para representar a la escuela en la siguiente instancia.', status: currentDate >= regionalDeadlineStart && currentDate <= regionalDeadlineEnd ? 'active' : (currentDate < regionalDeadlineStart ? 'upcoming' : 'past') },
+    ];
+    const getStatusClass = (status) => ({'active': 'border-blue-500', 'today': 'border-yellow-500 animate-pulse', 'upcoming': 'border-gray-300', 'past': 'border-green-500 opacity-70'}[status] || 'border-gray-300');
+    return (
+        <div className="p-4 sm:p-6 md:p-8">
+            <h2 className="text-3xl font-extrabold text-gray-800 mb-6">Agenda de la Feria</h2>
+            <div className="space-y-6">{agendaItems.map((item, index) => (<div key={index} className={`p-5 rounded-lg shadow-md bg-white border-l-4 ${getStatusClass(item.status)}`}><p className="font-bold text-sm text-gray-500">{item.date}</p><h3 className="text-xl font-bold text-gray-800 mt-1">{item.title}</h3><p className="text-gray-600 mt-2">{item.description}</p></div>))}</div>
+        </div>
+    );
+};
+
+const ResourceCenter = () => (
+    <div className="p-4 sm:p-6 md:p-8">
+        <h2 className="text-3xl font-extrabold text-gray-800 mb-6">Centro de Recursos Pedagógicos</h2>
+        <p className="text-lg text-gray-600 mb-8 max-w-3xl">Aquí encontrarás resúmenes y enlaces a los documentos clave que fundamentan nuestro enfoque pedagógico para la Feria de Ciencias.</p>
+        <div className="space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-2">10 Claves: Evaluar para Aprender</h3>
+                <p className="text-gray-600 mb-4">Propone un cambio de paradigma: la evaluación no como un fin para calificar, sino como el motor del aprendizaje. Se enfoca en la regulación, el uso del error como oportunidad y la autoevaluación.</p>
+                <a href="https://drive.google.com/drive/folders/1D-VV9dFtPOfwbGHIpkdTRmT2zqe_CWBe?usp=sharing" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">Acceder al Documento</a>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-2">Perspectiva STEAM</h3>
+                <p className="text-gray-600 mb-4">Presenta el enfoque STEAM como una perspectiva integrada para resolver problemas del mundo real, destacando metodologías como el Aprendizaje Basado en Proyectos (ABP).</p>
+                <a href="https://drive.google.com/drive/folders/1CU-B5IVJ2VKCYbQRQbCvUf8fYEgveMym?usp=sharing" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">Acceder al Documento</a>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-2">Diseño Curricular</h3>
+                <p className="text-gray-600 mb-4">Documento marco que establece los lineamientos pedagógicos y curriculares para la educación en la provincia.</p>
+                <a href="https://drive.google.com/drive/folders/1nqHrZTVUw_n1BPbFPbkbuP-j8oO99iPF?usp=sharing" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">Acceder al Documento</a>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-2">Escuela Posible: Capacidades Fundamentales</h3>
+                <p className="text-gray-600 mb-4">Define las capacidades fundamentales que la escuela debe desarrollar, como el pensamiento crítico, la creatividad y el trabajo colaborativo.</p>
+                <a href="https://drive.google.com/file/d/1LWr1dgr-rlp4rs2Q87FW167BZ1Q6Tj0G/view?usp=sharing" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">Acceder al Documento</a>
+            </div>
+             <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-2">Educación para el Desarrollo Sostenible</h3>
+                <p className="text-gray-600 mb-4">Conecta la educación con los Objetivos de Desarrollo Sostenible (ODS) para formar ciudadanos comprometidos con los desafíos globales.</p>
+                <a href="https://drive.google.com/file/d/1efnZXZkfOiYebNUwnN4sbiUcbWvnKnXI/view?usp=sharing" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">Acceder al Documento</a>
+            </div>
+             <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-2">Compromiso Alfabetizador</h3>
+                <p className="text-gray-600 mb-4">Lineamientos y estrategias para fortalecer los procesos de alfabetización en todas las áreas y niveles.</p>
+                <a href="https://drive.google.com/file/d/1xYJ2Y2WnEgoXs_oN6uuUwpODA4CEBq9E/view?usp=sharing" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">Acceder al Documento</a>
+            </div>
+             <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-2">Sistema de Valoración por Rúbricas</h3>
+                <p className="text-gray-600 mb-4">Documento oficial con las rúbricas generales y específicas para la evaluación de los proyectos de la feria institucional.</p>
+                <a href="https://docs.google.com/document/d/1tBw3ellr-yHg4KFKWFojzqHOz13bYVr1/edit?usp=sharing&ouid=117926729138446069988&rtpof=true&sd=true" target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:underline">Acceder al Documento</a>
+            </div>
+        </div>
+    </div>
+);
+
+const EvaluationCommittees = () => (
+    <div className="p-4 sm:p-6 md:p-8">
+        <h2 className="text-3xl font-extrabold text-gray-800 mb-6">Comisiones Evaluadoras</h2>
+        <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-3">COMISIÓN 1 (Primer Ciclo)</h3>
+                <p className="font-semibold text-gray-700">Coordina: SOLEDAD</p>
+                <ul className="text-sm text-gray-600 mt-2 list-disc list-inside">
+                    <li><strong>Docentes:</strong> 1B, 1C, 2B, 2C, 5B, 5C, 6B, 6C</li>
+                    <li><strong>Ramos Especiales:</strong> Macarena, Ed. Física T. Tarde</li>
+                    <li><strong>EDI:</strong> 1B, 1C, 2B, 2C, 5B, 5C, 6B, 6C</li>
+                    <li><strong>Ed. Artística T. Mañana:</strong> Laura Soria</li>
+                </ul>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-3">COMISIÓN 2 (Segundo Ciclo)</h3>
+                <p className="font-semibold text-gray-700">Coordina: PAMELA</p>
+                <ul className="text-sm text-gray-600 mt-2 list-disc list-inside">
+                    <li><strong>Docentes:</strong> 1A, 1D, 2A, 2D, 3B, 3C, 4B, 4C</li>
+                    <li><strong>Ramos Especiales:</strong> Música T. Mañana, Ed. Física T. Mañana</li>
+                    <li><strong>EDI:</strong> 1A, 1D, 2A, 2D, 3B, 3C, 4B, 4C</li>
+                    <li><strong>Ed. Artística T. Mañana:</strong> Melania Farias</li>
+                </ul>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-md">
+                <h3 className="text-xl font-bold text-blue-800 mb-3">COMISIÓN 3 (Tercer Ciclo)</h3>
+                <p className="font-semibold text-gray-700">Coordina: SILVINA</p>
+                <ul className="text-sm text-gray-600 mt-2 list-disc list-inside">
+                    <li><strong>Docentes:</strong> 3A, 3D, 4A, 4D, 5A, 5D, 6A, 6D</li>
+                    <li><strong>Ramos Especiales:</strong> Música T. Tarde</li>
+                    <li><strong>EDI:</strong> 3A, 3D, 4A, 4D, 5A, 5D, 6A, 6D</li>
+                    <li><strong>Ed. Artística:</strong> Micaela Fornero</li>
+                    <li>Cátedra Compartida, Programa Una Hora Más</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+);
+
+
+// --- COMPONENTE PRINCIPAL DE LA APLICACIÓN ---
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [activeTab, setActiveTab] = useState('projects');
+  const [evaluationProject, setEvaluationProject] = useState(null);
+  const [reportModal, setReportModal] = useState({ isOpen: false, content: '', projectTitle: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Autenticación y Carga de Datos
+  useEffect(() => {
+    const authAndLoad = async (currentUser) => {
+        if (currentUser) {
+            setUser(currentUser);
+            const userId = currentUser.uid;
+            const projectsCollectionRef = collection(db, `artifacts/${appId}/users/${userId}/projects`);
+            const unsubscribe = onSnapshot(query(projectsCollectionRef), (snapshot) => {
+                if (snapshot.empty) {
+                    setProjects([]);
+                } else {
+                    const projectsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+                    projectsData.sort((a, b) => a.grade.localeCompare(b.grade, undefined, { numeric: true }));
+                    setProjects(projectsData);
+                }
+                setLoading(false);
+            }, (error) => {
+                console.error("Error al cargar proyectos:", error);
+                setLoading(false);
+            });
+            return () => unsubscribe();
+        } else {
+            setUser(null);
+            setLoading(false);
+        }
+    };
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+        if (currentUser) {
+            authAndLoad(currentUser);
+        } else {
+            try {
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                const userCredential = token ? await signInWithCustomToken(auth, token) : await signInAnonymously(auth);
+                authAndLoad(userCredential.user);
+            } catch (error) {
+                console.error("Error de autenticación:", error);
+                setLoading(false);
+            }
+        }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+  
+  const handleLoadInitialProjects = async () => {
+    if (!user) return;
+    setLoading(true);
+    const userId = user.uid;
+    const batch = writeBatch(db);
+    initialProjects.forEach(project => {
+        const docRef = doc(db, `artifacts/${appId}/users/${userId}/projects`, project.id.toString());
+        batch.set(docRef, project);
+    });
+    try {
+        await batch.commit();
+        alert("Proyectos iniciales cargados exitosamente.");
+    } catch (error) {
+        console.error("Error al cargar proyectos iniciales:", error);
+        alert("Hubo un error al cargar los proyectos.");
+    }
+    setLoading(false);
+  };
+
+
+  const filteredProjects = useMemo(() => projects.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase())), [projects, searchTerm]);
+
+  const handleAddSuggestion = async (projectId, suggestion) => {
+    if (!user) return;
+    const userId = user.uid;
+    const projectRef = doc(db, `artifacts/${appId}/users/${userId}/projects`, projectId.toString());
+    const projectDoc = await getDoc(projectRef);
+    if (projectDoc.exists()) {
+        const currentSuggestions = projectDoc.data().suggestions || [];
+        await updateDoc(projectRef, {
+            suggestions: [...currentSuggestions, suggestion]
+        });
+    }
+  };
+
+  const handleSaveEvaluation = async (projectId, evaluationData) => {
+    if (!user) return;
+    const userId = user.uid;
+    const projectRef = doc(db, `artifacts/${appId}/users/${userId}/projects`, projectId.toString());
+    await updateDoc(projectRef, { evaluation: evaluationData });
+    setEvaluationProject(null);
+    setActiveTab('evaluation');
+  };
+
+  const generateReportText = (project) => {
+    let report = `INFORME DE EVALUACIÓN - FERIA DE CIENCIAS STEAM\nESCUELA BIANCO - 88° ANIVERSARIO\n=================================================\n\nPROYECTO: ${project.title.toUpperCase()} (${project.grade})\n\n`;
+    const renderRubricSection = (title, items) => {
+        let sectionText = `--- ${title.toUpperCase()} ---\n`;
+        items.forEach(item => {
+            const score = project.evaluation[item.id] || 0;
+            sectionText += `\nCriterio: ${item.criterion}\n`;
+            sectionText += `Puntaje: ${score}/5 (${scoreLevels[score] || 'No evaluado'})\n`;
+            if(score > 0) sectionText += `Indicador: ${item.indicators[score]}\n`;
+        });
+        return sectionText;
+    };
+    report += renderRubricSection("Valoración General", evaluationRubrics.general);
+    report += `\n${renderRubricSection("Valoración de Entregables", evaluationRubrics.deliverables)}`;
+    const specificRubricItems = evaluationRubrics[project.axis] || [];
+    if(specificRubricItems.length > 0) {
+        report += `\n${renderRubricSection(`Rúbrica Específica: ${project.axis}`, specificRubricItems)}`;
+    }
+    let total = 0, maxTotal = 0;
+    [...evaluationRubrics.general, ...evaluationRubrics.deliverables, ...specificRubricItems].forEach(item => {
+        total += project.evaluation[item.id] || 0;
+        maxTotal += 5;
+    });
+    const totalScore = maxTotal > 0 ? ((total / maxTotal) * 100).toFixed(1) : 0;
+    report += `\n\n--- PUNTAJE TOTAL: ${totalScore}% ---\n\n--- COMENTARIOS ---\n${project.evaluation.comments || 'Sin comentarios adicionales.'}\n\n=================================================\n`;
+    return report;
+  };
+
+  const handleGenerateReport = (project) => {
+    const reportText = generateReportText(project);
+    setReportModal({ isOpen: true, content: reportText, projectTitle: project.title });
+  };
+
+  const copyToClipboard = () => {
+    const textarea = document.createElement('textarea');
+    textarea.value = reportModal.content;
+    document.body.appendChild(textarea);
+    textarea.select();
+    try { document.execCommand('copy'); alert('¡Informe copiado al portapapeles!'); } 
+    catch (err) { alert('Error al copiar el informe.'); }
+    document.body.removeChild(textarea);
+  };
+  
+  const shareToWhatsApp = () => {
+    const schoolPhone = '5493534619108';
+    const message = encodeURIComponent(`*Informe de Evaluación - Feria de Ciencias Escuela Bianco*\n\n${reportModal.content}`);
+    window.open(`https://wa.me/${schoolPhone}?text=${message}`, '_blank');
+  };
+
+  const renderContent = () => {
+    if (loading) return <div className="text-center p-10">Cargando aplicación...</div>;
+    if (!role) return <AuthScreen onSelectRole={setRole} />;
+
+    if (projects.length === 0) {
+        return (
+            <div className="text-center p-10">
+                <h2 className="text-2xl font-bold">No hay proyectos cargados</h2>
+                <p className="text-gray-600 my-4">Parece que es la primera vez que usas la aplicación. Carga los proyectos iniciales para comenzar.</p>
+                <button onClick={handleLoadInitialProjects} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Cargar Proyectos Iniciales</button>
+            </div>
+        );
+    }
+
+    if (selectedProject) return <ProjectDetail project={selectedProject} onBack={() => setSelectedProject(null)} onAddSuggestion={handleAddSuggestion} role={role} />;
+    if (evaluationProject) return <EvaluationForm project={evaluationProject} onBack={() => setEvaluationProject(null)} onSaveEvaluation={handleSaveEvaluation} />;
+    
+    switch (activeTab) {
+      case 'projects': return (<div className="p-4 sm:p-6 md:p-8"><div className="mb-6"><h2 className="text-3xl font-extrabold text-gray-800">Proyectos de la Feria</h2><div className="relative mt-4"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="text" placeholder="Buscar proyectos..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{filteredProjects.map(p => <ProjectCard key={p.id} project={p} onSelect={setSelectedProject} />)}</div></div>);
+      case 'evaluation': return <EvaluationDashboard projects={projects} onSelectProject={setEvaluationProject} onGenerateReport={handleGenerateReport} role={role} />;
+      case 'agenda': return <Agenda />;
+      case 'resources': return <ResourceCenter />;
+      case 'committees': return <EvaluationCommittees />;
+      default: return null;
+    }
+  };
+
+  const TabButton = ({ tabName, label, icon: Icon }) => (
+    <button onClick={() => { setActiveTab(tabName); setSelectedProject(null); setEvaluationProject(null); }} className={`flex items-center space-x-2 px-3 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === tabName ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-blue-100'}`}>
+      <Icon size={18} />
+      <span>{label}</span>
+    </button>
+  );
+
+  if (!role) {
+      return <AuthScreen onSelectRole={setRole} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100 font-sans">
+      <header className="bg-white shadow-md">
+        <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center">
+          <div className="text-center sm:text-left mb-4 sm:mb-0">
+            <h1 className="text-2xl font-black text-blue-800">Feria de Ciencias STEAM</h1>
+            <p className="text-sm text-gray-500">88° Aniversario - Escuela Bianco</p>
+          </div>
+          <div className="flex items-center space-x-4">
+             <span className="text-sm font-semibold text-gray-700 hidden sm:block">Rol: <span className="text-blue-600">{role}</span></span>
+             <nav className="flex flex-wrap justify-center space-x-1 bg-gray-100 p-1 rounded-lg">
+                <TabButton tabName="projects" label="Proyectos" icon={Lightbulb} />
+                <TabButton tabName="evaluation" label="Evaluación" icon={Award} />
+                <TabButton tabName="agenda" label="Agenda" icon={Calendar} />
+                <TabButton tabName="resources" label="Recursos" icon={BookOpen} />
+                <TabButton tabName="committees" label="Comisiones" icon={Users2} />
+             </nav>
+          </div>
+        </div>
+      </header>
+      <main className="container mx-auto px-4 py-6">{renderContent()}</main>
+      {reportModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center"><h3 className="text-lg font-bold text-gray-800">Informe de Evaluación: {reportModal.projectTitle}</h3><button onClick={() => setReportModal({ ...reportModal, isOpen: false })} className="text-gray-500 hover:text-gray-800">&times;</button></div>
+            <div className="p-4 overflow-y-auto"><pre className="bg-gray-100 p-3 rounded-md text-sm whitespace-pre-wrap font-mono">{reportModal.content}</pre></div>
+            <div className="p-4 border-t bg-gray-50 flex flex-col sm:flex-row gap-2 justify-end">
+              <button onClick={copyToClipboard} className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold"><Clipboard size={16} className="mr-2" /> Copiar para Word</button>
+              <button onClick={shareToWhatsApp} className="flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 font-semibold"><Share2 size={16} className="mr-2" /> Enviar a WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
